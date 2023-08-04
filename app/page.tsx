@@ -1,113 +1,255 @@
-import Image from 'next/image'
+"use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Plus, SendHorizonal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+
+interface Chat {
+  id: string;
+  text: string;
+  role: "user" | "ai";
+}
+
+const getId = () => Math.random().toString(36).substring(2);
 
 export default function Home() {
+  const [form, setForm] = useState({ drive_url: "" });
+  const [indexed, setIndexed] = useState(false);
+
+  const [checkingIndex, setCheckingIndex] = useState(true);
+
+  const [query, setQuery] = useState("");
+
+  const [chats, setChats] = useState<Array<Chat>>([]);
+
+  const [loadingResponse, setLoadingResponse] = useState(false);
+
+  const [streaming, setStreaming] = useState<string>("");
+
+  async function isIndexed() {
+    const res = await fetch("http://localhost:5000/indexed", {
+      headers: {
+        Authorization: `${localStorage.getItem("gdrive-chat")}`,
+      },
+    });
+
+    if (!res.ok) {
+      const data = await res.text();
+      console.log(data);
+      return;
+    }
+
+    const data = await res.json();
+
+    if (data && data.indexed) {
+      setIndexed(true);
+    } else if (data && !data.indexed) {
+      setCheckingIndex(false);
+    }
+  }
+
+  async function getResponse() {
+    setLoadingResponse(true);
+    let responseString = "";
+
+    const res = await fetch("http://localhost:5000/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `${localStorage.getItem("gdrive-chat")}`,
+      },
+      body: JSON.stringify({
+        query,
+      }),
+    });
+
+    if (!res.ok) {
+      const data = await res.text();
+      console.log(data);
+      setLoadingResponse(false);
+      setChats((prev) => [
+        ...prev,
+        { text: "Oops! An error occured", role: "ai", id: getId() },
+      ]);
+      return;
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) return;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        setChats((prev) => [
+          ...prev,
+          {
+            id: getId(),
+            role: "ai",
+            text: responseString,
+          },
+        ]);
+        setStreaming("");
+        break;
+      }
+      const chunk = new TextDecoder("utf-8").decode(value);
+
+      responseString += chunk;
+      streamer(chunk);
+    }
+
+    function streamer(token: string) {
+      setStreaming((prev) => prev + token);
+    }
+
+    setLoadingResponse(false);
+  }
+
+  const router = useRouter();
+  useEffect(() => {
+    if (!localStorage.getItem("gdrive-chat")) {
+      router.push("/login");
+    } else {
+      isIndexed();
+    }
+  }, []);
+
+  async function startIndexing() {
+    const res = await fetch("http://localhost:5000/index-gdrive", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `${localStorage.getItem("gdrive-chat")}`,
+      },
+      body: JSON.stringify({
+        drive_url: form.drive_url,
+      }),
+    });
+
+    if (!res.ok) {
+      const data = await res.text();
+      console.log(data);
+      return;
+    }
+
+    const data = await res.json();
+
+    if (data && data.status === "success") {
+      setIndexed(true);
+    }
+  }
+
+  function onChange(e: ChangeEvent<HTMLInputElement>) {
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  }
+
+  async function handleSend(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const userChat: Chat = {
+      id: getId(),
+      role: "user",
+      text: query,
+    };
+    setChats((prev) => [...prev, userChat]);
+    await getResponse();
+    setQuery("");
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!form.drive_url) return;
+    await startIndexing();
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
+    <div className="w-full h-full flex justify-center items-center">
+      <div className="w-9/12 h-full flex justify-center items-center">
+        {!indexed ? (
+          <div>
+            <div className="p-4 rounded-md w-[500px] bg-primary/5">
+              <p className="mb-1 text-center">Start new chat</p>
+              <p className="text-muted-foreground mb-4 text-center">
+                Supported files: PDF, TXT, Google Doc
+              </p>
+              <form onSubmit={onSubmit}>
+                <Input
+                  disabled={checkingIndex}
+                  placeholder="Chat Title (Optional)"
+                />
+                <Input
+                  disabled={checkingIndex}
+                  className="mt-2"
+                  placeholder="Folder/File Link"
+                  name="drive_url"
+                  value={form.drive_url}
+                  onChange={onChange}
+                />
+                <Button
+                  disabled={checkingIndex}
+                  className="mt-4 w-full"
+                  type="submit"
+                >
+                  Start Chatting
+                </Button>
+              </form>
+            </div>
+          </div>
+        ) : (
+          <div className="relative w-full h-full flex justify-center items-center flex-col">
+            <div className="border border-b-0 border-t-0 flex-1 w-full max-w-[700px]">
+              {chats.map((chat) => (
+                <div className="border-b p-3 flex items-start gap-3">
+                  <div>
+                    <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-white">
+                      {chat.role === "ai" ? "AI" : "U"}
+                    </div>
+                  </div>
+                  <div className="mt-1">{chat.text}</div>
+                </div>
+              ))}
+              {streaming && (
+                <div className="border-b p-3 flex items-start gap-3">
+                  <div>
+                    <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-white">
+                      AI
+                    </div>
+                  </div>
+                  <div className="mt-1">{streaming}</div>
+                </div>
+              )}
+            </div>
+            <div className="w-full p-4 border border-b-0 max-w-[700px]">
+              <form
+                className="w-full flex items-center gap-4 max-w-[700px]"
+                onSubmit={handleSend}
+              >
+                <Input
+                  name="query"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Enter your query..."
+                  disabled={loadingResponse}
+                />
+                <Button disabled={loadingResponse} type="submit">
+                  <SendHorizonal />
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIndexed(false);
+                    setCheckingIndex(false);
+                  }}
+                  disabled={loadingResponse}
+                  type="button"
+                >
+                  <Plus />
+                </Button>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore the Next.js 13 playground.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+    </div>
+  );
 }
