@@ -83,6 +83,10 @@ body {
   height: 100%;
 }
 
+.marked {
+  width: 100%;
+}
+
 .marked p {
   margin-bottom: 10px;
 }
@@ -95,4 +99,9 @@ body {
 .marked ol {
   list-style: decimal;
   margin-left: 1rem;
+}
+
+.marked table {
+  width: 500px;
+  overflow-x: scroll;
 }

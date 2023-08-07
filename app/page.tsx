@@ -13,15 +13,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/use-toast";
-import { ArrowLeft, Plus, RotateCw, SendHorizonal } from "lucide-react";
+import { ArrowLeft, LogOut, Plus, RotateCw, SendHorizonal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { marked } from "marked";
+import { ReIndex } from "@/components/ReIndex";
 
 interface Chat {
   id: string;
-  text: string;
-  role: "user" | "ai";
+  content: string;
+  role: "user" | "assistant";
 }
 
 const getId = () => Math.random().toString(36).substring(2);
@@ -70,6 +71,11 @@ export default function Home() {
     setCheckingIndex(false);
   }
 
+  function getChatHistory() {
+    if (chats.length === 0) return [];
+    return chats;
+  }
+
   async function getResponse() {
     setLoadingResponse(true);
     let responseString = "";
@@ -82,6 +88,7 @@ export default function Home() {
       },
       body: JSON.stringify({
         query,
+        chat_history: getChatHistory(),
       }),
     });
 
@@ -91,7 +98,7 @@ export default function Home() {
       setLoadingResponse(false);
       setChats((prev) => [
         ...prev,
-        { text: "Oops! An error occured", role: "ai", id: getId() },
+        { content: "Oops! An error occured", role: "assistant", id: getId() },
       ]);
       return;
     }
@@ -105,8 +112,8 @@ export default function Home() {
           ...prev,
           {
             id: getId(),
-            role: "ai",
-            text: responseString,
+            role: "assistant",
+            content: responseString,
           },
         ]);
         setStreaming("");
@@ -184,7 +191,7 @@ export default function Home() {
     const userChat: Chat = {
       id: getId(),
       role: "user",
-      text: query,
+      content: query,
     };
     setChats((prev) => [...prev, userChat]);
     await getResponse();
@@ -198,8 +205,31 @@ export default function Home() {
   }
 
   return (
-    <div className="w-full h-full flex justify-center items-center">
-      <div className="w-9/12 h-full flex justify-center items-center">
+    <div className="w-full h-full flex flex-col justify-center items-center">
+      <div className="py-1 px-4 w-full border-b flex justify-between items-center relative">
+        <div className="flex items-center gap-3">
+          <img
+            src="/logo.svg"
+            className="w-10 h-10 border border-primary/60 rounded-md"
+          />
+          <p>Llama Drive</p>
+        </div>
+        <div
+          className="absolute top-1/2 left-1/2"
+          style={{ transform: "translate(-50%, -50%)" }}
+        >
+          <ReIndex
+            drive_url={form.drive_url}
+            indexing={indexing}
+            name={form.name}
+            startIndexing={startIndexing}
+          />
+        </div>
+        <Button variant={"outline"} className="border-0">
+          <LogOut size={20} />
+        </Button>
+      </div>
+      <div className="w-9/12 flex-1 flex justify-center items-center">
         {showController ? (
           <div>
             {indexing ? (
@@ -277,62 +307,18 @@ export default function Home() {
             className="relative w-full h-full flex justify-center items-center flex-col"
             style={{ minHeight: "min-content" }}
           >
-            <div className="text-sm py-1 underline border border-t-0 w-full max-w-[700px] text-center">
-              <div className="flex items-center justify-center gap-3">
-                <a href={form.drive_url}>{form.name}</a>
-                <AlertDialog>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          size="icon"
-                          className="p-1 w-8 h-8"
-                          onClick={startIndexing}
-                        >
-                          <RotateCw size={18} />
-                        </Button>
-                      </AlertDialogTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Re-Index your drive documents</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <AlertDialogContent
-                    security="on"
-                    className="sm:max-w-[425px] flex justify-center items-center flex-col"
-                  >
-                    {indexing ? (
-                      <>
-                        <p>Refreshing Index</p>
-                        <p className="text-center">
-                          It might take a while to index your documents based on
-                          their size.
-                        </p>
-                        <img src="/bars-rotate-fade.svg" alt="spinner" />
-                      </>
-                    ) : (
-                      <>
-                        <p>Indexing Complete</p>
-                        <AlertDialogCancel>Updated! Continue</AlertDialogCancel>
-                      </>
-                    )}
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
             <div className="border border-b-0 border-t-0 flex-1 w-full max-w-[700px] overflow-auto">
               {chats.map((chat) => (
                 <div className="border-b p-3 flex items-start gap-3">
                   <div>
                     <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-white">
-                      {chat.role === "ai" ? "AI" : "U"}
+                      {chat.role === "assistant" ? "AI" : "U"}
                     </div>
                   </div>
                   {/* <div className="mt-1">{chat.text}</div> */}
                   <div
                     className="mt-1 marked"
-                    dangerouslySetInnerHTML={{ __html: marked(chat.text) }}
+                    dangerouslySetInnerHTML={{ __html: marked(chat.content) }}
                   ></div>
                 </div>
               ))}
@@ -343,7 +329,10 @@ export default function Home() {
                       AI
                     </div>
                   </div>
-                  <div className="mt-1">{streaming}</div>
+                  <div
+                    className="mt-1 marked"
+                    dangerouslySetInnerHTML={{ __html: marked(streaming) }}
+                  ></div>
                 </div>
               )}
             </div>

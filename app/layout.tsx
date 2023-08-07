@@ -9,8 +9,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Drive Chat",
-  description: "Chat with your files on google drive",
+  title: "Llama Drive",
+  description: "Interact with your google drive files more efficiently.",
 };
 
 export default function RootLayout({
@@ -20,6 +20,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="icon" href="/logo.png" sizes="any" />
+      </head>
       <body className={cn(inter.className, "")}>
         <TooltipProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
