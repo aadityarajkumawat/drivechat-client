@@ -4,7 +4,7 @@ export default function SignUp() {
   return (
     <div className="w-full h-full flex justify-center items-center">
       <form className="text-center">
-        <h1 className="text-xl">Welcome to Drive Chat</h1>
+        <h1 className="text-xl">Welcome to Llama Drive</h1>
         <p className="text-muted-foreground">
           Connect the google account you want to allow reading files from.
         </p>
