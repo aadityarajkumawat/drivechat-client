@@ -2,7 +2,7 @@ import { BASE_URL, __is_prod__ } from ".";
 
 export const REDIRECT_URI = `${BASE_URL}/callback/google`;
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID as string;
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID as string;
 
 export function getGoogleOAuthURL(redirect?: string) {
   const rootUrl = "https://accounts.google.com/o/oauth2/v2/auth";
