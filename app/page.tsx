@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { marked } from "marked";
 import { ReIndex } from "@/components/ReIndex";
+import { BASE_URL } from "@/lib";
 
 interface Chat {
   id: string;
@@ -47,7 +48,7 @@ export default function Home() {
   const [streaming, setStreaming] = useState<string>("");
 
   async function isIndexed() {
-    const res = await fetch("http://localhost:5000/indexed", {
+    const res = await fetch(`${BASE_URL}/indexed`, {
       headers: {
         Authorization: `${localStorage.getItem("gdrive-chat")}`,
       },
@@ -80,7 +81,7 @@ export default function Home() {
     setLoadingResponse(true);
     let responseString = "";
 
-    const res = await fetch("http://localhost:5000/chat", {
+    const res = await fetch(`${BASE_URL}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -143,7 +144,7 @@ export default function Home() {
 
   async function startIndexing() {
     setIndexing(true);
-    const res = await fetch("http://localhost:5000/index-gdrive", {
+    const res = await fetch(`${BASE_URL}/index-gdrive`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

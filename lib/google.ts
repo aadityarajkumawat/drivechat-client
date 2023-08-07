@@ -1,12 +1,8 @@
-import { __is_prod__ } from ".";
+import { BASE_URL, __is_prod__ } from ".";
 
-export const BASE_URL = __is_prod__
-  ? "https://webmarkserver.up.railway.app"
-  : `http://127.0.0.1:5000`;
 export const REDIRECT_URI = `${BASE_URL}/callback/google`;
 
-const GOOGLE_CLIENT_ID =
-  "881365933465-8p88663jo662djd5kllfc0sudnq6lclj.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID as string;
 
 export function getGoogleOAuthURL(redirect?: string) {
   const rootUrl = "https://accounts.google.com/o/oauth2/v2/auth";
