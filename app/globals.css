@@ -83,10 +83,6 @@ body {
   height: 100%;
 }
 
-.marked {
-  width: 100%;
-}
-
 .marked p {
   margin-bottom: 10px;
 }
@@ -104,4 +100,20 @@ body {
 .marked table {
   width: 500px;
   overflow-x: scroll;
+}
+
+.marked h1 {
+  @apply text-3xl font-bold mb-4;
+}
+
+.marked h2 {
+  @apply text-2xl font-bold mb-4;
+}
+
+.marked h3 {
+  @apply text-xl font-bold mb-4;
+}
+
+.marked h4 {
+  @apply text-lg font-bold mb-4;
 }
